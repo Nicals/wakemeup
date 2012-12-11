@@ -1,0 +1,21 @@
+I use to use J. Nightingale's beep in combination with at command as
+an alarm clock. It work well, but it wasn't great to switch on (select
+the beep melody) or off (need to kill a background process).
+
+I didn't wanted to write something great, just something usefull. In
+fact, it was written just before going to sleep in order to get a full
+scale test.
+
+If for any reason you wan't to contact me:
+  nicolas.appriou@gmail.com
+
+Wakemeup can be found on my github repository at:
+  http://github.com/Nicals/wakemeup
+
+For installation instruction, see INSTALL.
+For copyright information, see COPYING.
+For usage information, see the man page.
+
+All files ar copyright Nicolas Appriou, 2012.
+All files are distributed under the GNU GPL.
+

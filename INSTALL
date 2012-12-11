@@ -1,0 +1,21 @@
+Dependancy
+----------
+
+This program use a modified version of Beep.
+Beep written by Jonathan Nightingale and publish under the GNU GPL.
+It is a command line tool that beeps the PC speaker. I added a few
+line to the code to add an infinite loop option. This version
+can be found on my github repository: http://github.com/Nicals/Bepp
+
+
+Installation
+------------
+
+As always:
+
+$ make
+# make install
+
+You can remove the program in a similar way:
+# make uninstall
+
