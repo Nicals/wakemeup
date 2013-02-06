@@ -4,7 +4,7 @@ the beep melody) or off (need to kill a background process).
 
 I didn't wanted to write something great, just something usefull. In
 fact, it was written just before going to sleep in order to get a full
-scale test.
+scale test rapidly.
 
 If for any reason you wan't to contact me:
   nicolas.appriou@gmail.com
@@ -16,6 +16,7 @@ For installation instruction, see INSTALL.
 For copyright information, see COPYING.
 For usage information, see the man page.
 
-All files ar copyright Nicolas Appriou, 2012.
-All files are distributed under the GNU GPL.
+All files are copyright Nicolas Appriou, 2012-2013.
+All files accept the alarm.sh example are distributed under the GNU GPL.
+alarme.sh is distributed under the Beerware Licence (rev. 42)
 

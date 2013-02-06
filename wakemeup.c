@@ -1,7 +1,7 @@
 /*
  * ==========================================================================
  *
- *  This code is copyright Nicolas Appriou, 2012
+ *  This code is copyright Nicolas Appriou, 2012-2013
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -51,6 +51,8 @@
  * some global stuff
  */
 
+#define VERSION "wakemeup 1.0"
+
 #define MIN_CHALLENGE_NB  100
 #define MAX_CHALLENGE_NB  999
 #define RAND_MIN_MAX(min, max) ((rand() % (max - min + 1)) + min)
@@ -61,7 +63,6 @@ const char* pid_filename = "/tmp/wakemeup.pid";
 /*
  * a few structures
  */
-
 
 enum _switch {
   ENABLED,
@@ -120,6 +121,7 @@ int challenge() {
 
   return atoi(user_input) == result ? 0 : -1;
 }
+
 
 /*
  * Start alarm and set PID
@@ -187,11 +189,12 @@ void stop_alarm(pid_t beep_pid) {
 int read_param(int argc, char* argv[], struct _params* params) {
   int return_code = -1;
   int next_option;
-  const char* const short_options = "chr";
+  const char* const short_options = "chrv";
   const struct option long_options[] = {
     {"robot", no_argument, NULL, 'r'},
     {"challenge", no_argument, NULL, 'c'},
     {"help", no_argument, NULL, 'h'},
+    {"version", no_argument, NULL, 'v'},
     {0, 0, 0, 0}
   };
 
@@ -209,8 +212,22 @@ int read_param(int argc, char* argv[], struct _params* params) {
       case 'h':
         return_code = 0;
         usage(argv[0]);
+        exit(0);
+        break;
+      case 'v':
+        printf("%s\n", VERSION);
+        printf("god mod: %s\n",
+#ifdef GOD_MOD
+            "enabled"
+#else
+            "disabled"
+#endif
+        );
+        exit(0);
         break;
       case '?':
+        fprintf(stderr, "Unknown option -%c\nUse %s for more informations.\n\n", next_option, argv[0]);
+        exit(1);
         break;
       default:
         break;
@@ -225,18 +242,14 @@ int read_param(int argc, char* argv[], struct _params* params) {
  * Obvious function
  */
 void usage(const char* prg_name) {
-  printf("\nUsage: %s [-h] [-r]"
-#ifdef GOD_MOD
-         " [-c]"
-#endif
+  printf("\nUsage: %s [-r] [-c] [-h] [-v]"
       "\n\n"
       "Launch an alarm on your computer to wake up early on the morning.\n\n"
       "optional arguments:\n"
-#ifdef GOD_MOD
-      "\t   -c   --challenge   switch challenge off\n"
-#endif 
+      "\t   -c   --challenge   switch challenge off. Only with god mod enabled ad compile time\n"
       "\t   -r   --robot       don't launch the challenge, don't stop the current alarm\n"
       "\t   -h   --help        print this help\n"
+      "\t   -v   --version     get version and compile option\n"
       "\n"
       ,
       prg_name);
@@ -275,6 +288,7 @@ int main(int argc, char* argv[]) {
       fscanf(pid_file, "%u\n", &beep_pid);
       fclose(pid_file);
 
+      /* only on god mod */
       if (params.skip_challenge == ENABLED)
         stop_alarm_ok = ENABLED;
       else if (params.im_a_robot == DISABLED) 

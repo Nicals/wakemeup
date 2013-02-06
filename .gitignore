@@ -1,0 +1,6 @@
+# junk
+*.o
+# compiled executable
+wakemeup
+# man page
+wakemeup.1
