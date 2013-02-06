@@ -10,7 +10,7 @@ MOD=
 # uncomment the following line if you need it
 # MOD+= -DGOD_MOD
 
-.PHONY:all clean mproper rebuild
+.PHONY:all clean mproper install uninstall
 
 all:wakemeup
 

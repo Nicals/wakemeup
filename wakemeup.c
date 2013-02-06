@@ -173,10 +173,7 @@ void stop_alarm(pid_t beep_pid) {
     putchar('\a');
   }
   else {
-    /* If we get there, it may be because a pid file
-     * is still on hard drive but the process isn't running.
-     */
-    fprintf(stdout, "INFO: deleting an obsolete PID file.\n");
+    fprintf(stdout, "INFO: Cannot kill process [%u]\n", beep_pid);
   }
   unlink(pid_filename);
 }
@@ -288,14 +285,30 @@ int main(int argc, char* argv[]) {
       fscanf(pid_file, "%u\n", &beep_pid);
       fclose(pid_file);
 
-      /* only on god mod */
-      if (params.skip_challenge == ENABLED)
-        stop_alarm_ok = ENABLED;
-      else if (params.im_a_robot == DISABLED) 
-        stop_alarm_ok = (challenge() == 0 ? ENABLED : DISABLED);
+      /* check if the process is still alive */
+      if (kill(beep_pid, 0) < 0) {
+        if (errno == ESRCH) {
+          /* If we get there, it may be because a pid file
+           * is still on hard drive but the process isn't running.
+           */
+          unlink(pid_filename);
+          fprintf(stdout, "INFO: deleting an obsolete PID file [%u].\n", beep_pid);
+          start_alarm();
+        }
+        else if (errno == EPERM) {
+          fprintf(stderr, "ERR: don't have the permission to contact running beep instance [%u].\n", beep_pid);
+        }
+      }
+      else {
+        /* only on god mod */
+        if (params.skip_challenge == ENABLED)
+          stop_alarm_ok = ENABLED;
+        else if (params.im_a_robot == DISABLED) 
+          stop_alarm_ok = (challenge() == 0 ? ENABLED : DISABLED);
 
-      if (stop_alarm_ok == ENABLED)
-        stop_alarm(beep_pid);
+        if (stop_alarm_ok == ENABLED)
+          stop_alarm(beep_pid);
+      }
     }
   }
 
