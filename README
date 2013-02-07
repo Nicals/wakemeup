@@ -6,6 +6,11 @@ I didn't wanted to write something great, just something usefull. In
 fact, it was written just before going to sleep in order to get a full
 scale test rapidly.
 
+Beware, wakemeup launches instance of beep and store a file containing
+the pid of this beep instance in $HOME/.wakemeup.pid
+On multi-user system, you don't wan't several user to launch wakemeup
+in the same time.
+
 If for any reason you wan't to contact me:
   nicolas.appriou@gmail.com
 

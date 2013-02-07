@@ -31,6 +31,9 @@
  * ==========================================================================
  *  Changelog
  * ==========================================================================
+ * 2013-02-07
+ *    * The pid file is now set in the user repository.
+ *    * Correcting pid file handling.
  *  2012-12-10
  *    * Added the --robot options usefull for scripting multiples alarms.
  *
@@ -53,12 +56,13 @@
 
 #define VERSION "wakemeup 1.0"
 
-#define MIN_CHALLENGE_NB  100
-#define MAX_CHALLENGE_NB  999
+#define MIN_CHALLENGE_NB  1000
+#define MAX_CHALLENGE_NB  9999
 #define RAND_MIN_MAX(min, max) ((rand() % (max - min + 1)) + min)
 
-const char* pid_filename = "/tmp/wakemeup.pid";
 
+/* need it global to be sure to free it */
+char* pid_filepath;
 
 /*
  * a few structures
@@ -83,11 +87,23 @@ struct _params {
 /* 
  * functions
  */
+void termination_handler(int sig_num);
 int challenge();
 void start_alarm();
 void stop_alarm(pid_t beep_pid);
-int read_param(int argc, char* argv[], struct _params* params);
+void read_param(int argc, char* argv[], struct _params* params);
 void usage(const char* prg_name);
+
+
+/*
+ * Be sure to free all dynamically allocated variable on SIGINT
+ */
+void termination_handler(int sig_num) {
+  if (sig_num == SIGINT) {
+    free(pid_filepath);
+    exit(0);
+  }
+}
 
 
 /*
@@ -142,17 +158,17 @@ void start_alarm() {
   }
   else if (beep_pid > 0) {
     /* save pid file */
-    pid_file = fopen(pid_filename, "w");
+    pid_file = fopen(pid_filepath, "w");
     if (pid_file) {
       fprintf(pid_file, "%u\n", beep_pid);
       fclose(pid_file);
       /* set some permission here */
-      chmod(pid_filename, 0444);
+      chmod(pid_filepath, 0500);
       fprintf(stdout, "INFO: Process [%u] started.\n", beep_pid);
     }
     else {
       fprintf(stderr, "ERROR: Cannot write pid file %s (%s)", 
-              pid_filename, strerror(errno));
+              pid_filepath, strerror(errno));
       kill(beep_pid, SIGTERM);
     }
   }
@@ -175,7 +191,7 @@ void stop_alarm(pid_t beep_pid) {
   else {
     fprintf(stdout, "INFO: Cannot kill process [%u]\n", beep_pid);
   }
-  unlink(pid_filename);
+  unlink(pid_filepath);
 }
 
 
@@ -183,8 +199,7 @@ void stop_alarm(pid_t beep_pid) {
  * If the returned value is not below 0, the program will
  * exit with this return code.
  */
-int read_param(int argc, char* argv[], struct _params* params) {
-  int return_code = -1;
+void read_param(int argc, char* argv[], struct _params* params) {
   int next_option;
   const char* const short_options = "chrv";
   const struct option long_options[] = {
@@ -207,7 +222,6 @@ int read_param(int argc, char* argv[], struct _params* params) {
         params->im_a_robot = ENABLED;
         break;
       case 'h':
-        return_code = 0;
         usage(argv[0]);
         exit(0);
         break;
@@ -230,8 +244,6 @@ int read_param(int argc, char* argv[], struct _params* params) {
         break;
     }
   } while (next_option != -1);
-
-  return return_code;
 }
 
 
@@ -257,62 +269,83 @@ void usage(const char* prg_name) {
  * Entry point
  */
 int main(int argc, char* argv[]) {
-  FILE* pid_file;
-  pid_t beep_pid = 0;
   struct _params params;
   enum _switch stop_alarm_ok = DISABLED;
-  int return_code;
+  FILE* pid_file;
+  pid_t beep_pid = 0;
+  char* home_dir;
+  const char* pid_filename = "/.wakemeup.pid";
+  struct sigaction sig_handler;
 
   /* set default parameters */
   params.skip_challenge = DISABLED;
   params.im_a_robot = DISABLED;
 
-  if ((return_code = read_param(argc, argv, &params)) < 0) {
-    return_code = 0;
+  read_param(argc, argv, &params);
 
-    /* Check if the pid file exists.
-     * If it doesn't exists, create it and launch a beep alarm.
-     * If it exists, get the pid written in it and kill the
-     * process.
+  /* build full pid pathname from $HOME/<pid_filename> */
+  home_dir = getenv("HOME");
+  if (!home_dir) {
+    fprintf(stderr, "ERR: HOME environment variable not defined.\n");
+    return 2;
+  }
+  pid_filepath = malloc(sizeof(char) * (strlen(pid_filename) + strlen(home_dir) + 1));
+  if (!pid_filepath) {
+    fprintf(stderr, "ERR: Maloc error.\n");
+    return 3;
+  }
+  strcpy(pid_filepath, home_dir);
+  strcat(pid_filepath, pid_filename);
+
+  /* now we've malloc the stuff, make sur we will destroy it in any case */
+  memset(&sig_handler, 0x00, sizeof(struct sigaction));
+  sig_handler.sa_handler = termination_handler;
+  sigaction(SIGINT, &sig_handler, NULL);
+
+  /* Check if the pid file exists.
+   * If it doesn't exists, create it and launch a beep alarm.
+   * If it exists, get the pid written in it and kill the
+   * process.
+   */
+  if (!(pid_file = fopen(pid_filepath, "r"))) {
+    start_alarm();
+  }
+  else {
+    /* the file contains only one line : the pid of the beep alarm
+     * currently running.
      */
-    if (!(pid_file = fopen(pid_filename, "r"))) {
-      start_alarm();
+    fscanf(pid_file, "%u\n", &beep_pid);
+    fclose(pid_file);
+
+    /* check if the process is still alive */
+    if (kill(beep_pid, 0) < 0) {
+      if (errno == ESRCH) {
+        /* If we get there, it may be because a pid file
+         * is still on hard drive but the process isn't running.
+         */
+        unlink(pid_filepath);
+        fprintf(stdout, "INFO: deleting an obsolete PID file [%u].\n", beep_pid);
+        start_alarm();
+      }
+      else if (errno == EPERM) {
+        fprintf(stderr, "ERR: don't have the permission to contact running beep instance [%u].\n", beep_pid);
+      }
     }
     else {
-      /* the file contains only one line : the pid of the beep alarm
-       * currently running.
-       */
-      fscanf(pid_file, "%u\n", &beep_pid);
-      fclose(pid_file);
+      /* only on god mod */
+      if (params.skip_challenge == ENABLED)
+        stop_alarm_ok = ENABLED;
+      else if (params.im_a_robot == DISABLED) 
+        stop_alarm_ok = (challenge() == 0 ? ENABLED : DISABLED);
 
-      /* check if the process is still alive */
-      if (kill(beep_pid, 0) < 0) {
-        if (errno == ESRCH) {
-          /* If we get there, it may be because a pid file
-           * is still on hard drive but the process isn't running.
-           */
-          unlink(pid_filename);
-          fprintf(stdout, "INFO: deleting an obsolete PID file [%u].\n", beep_pid);
-          start_alarm();
-        }
-        else if (errno == EPERM) {
-          fprintf(stderr, "ERR: don't have the permission to contact running beep instance [%u].\n", beep_pid);
-        }
-      }
-      else {
-        /* only on god mod */
-        if (params.skip_challenge == ENABLED)
-          stop_alarm_ok = ENABLED;
-        else if (params.im_a_robot == DISABLED) 
-          stop_alarm_ok = (challenge() == 0 ? ENABLED : DISABLED);
-
-        if (stop_alarm_ok == ENABLED)
-          stop_alarm(beep_pid);
-      }
+      if (stop_alarm_ok == ENABLED)
+        stop_alarm(beep_pid);
     }
   }
 
-  return return_code;
+  free(pid_filepath);
+
+  return 0;
 }
 
 
