@@ -185,8 +185,6 @@ void start_alarm() {
 void stop_alarm(pid_t beep_pid) {
   if (kill(beep_pid, SIGTERM) == 0) {
     fprintf(stdout, "INFO: Process [%u] killed.\n", beep_pid);
-    /* Just to be sure that the internal speaker will stop */
-    putchar('\a');
   }
   else {
     fprintf(stdout, "INFO: Cannot kill process [%u]\n", beep_pid);
